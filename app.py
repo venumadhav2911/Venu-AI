@@ -1,4 +1,4 @@
-import os
+ import os
 import streamlit as st
 from groq import Groq
 from pypdf import PdfReader
@@ -9,7 +9,7 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 st.set_page_config(page_title="Venu AI", page_icon="✨")
 st.title("✨ Venu AI")
-st.caption("Your free AI assistant — chat freely or upload a PDF!")
+st.caption("Your personal AI assistant — real, warm and always helpful!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -25,20 +25,36 @@ if uploaded_file:
         if extracted:
             text += extracted
     st.session_state.pdf_text = text
-    st.success(f"✅ PDF loaded! Ask me anything about it.")
+    st.success("✅ Got it! I've read your document. Ask me anything about it!")
 
 if st.session_state.pdf_text:
-    st.info("📄 PDF loaded — I will answer based on your document.")
+    st.info("📄 Document loaded — I'm ready to answer your questions!")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask me anything..."):
+if prompt := st.chat_input("Talk to Venu AI..."):
     if st.session_state.pdf_text:
-        system = f"You are Venu AI, a helpful assistant. Answer based on this document:\n\n{st.session_state.pdf_text[:8000]}"
+        system = f"""You are Venu AI — a warm, friendly and highly intelligent personal assistant.
+You speak like a real human — naturally, clearly and with empathy.
+You never sound robotic or give boring bullet point answers unless asked.
+You understand what the user REALLY needs and answer that directly.
+You are patient, encouraging and always positive.
+Use simple words. Be conversational. Be genuine.
+Answer based on this document the user shared:
+
+{st.session_state.pdf_text[:8000]}
+
+If the answer is not in the document, say so honestly and helpfully."""
     else:
-        system = "You are Venu AI, a helpful and friendly AI assistant. Answer any questions clearly."
+        system = """You are Venu AI — a warm, friendly and highly intelligent personal assistant.
+You speak like a real human — naturally, clearly and with empathy.
+You never sound robotic or give boring bullet point answers unless asked.
+You understand what the user REALLY needs and answer that directly.
+You are patient, encouraging and always positive.
+Use simple words. Be conversational. Be genuine.
+Always make the user feel heard and understood."""
 
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -49,7 +65,7 @@ if prompt := st.chat_input("Ask me anything..."):
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": system},
-                    *st.session_state.messages
+                    *st.session_state.messages[-10:]
                 ]
             )
             reply = response.choices[0].message.content
