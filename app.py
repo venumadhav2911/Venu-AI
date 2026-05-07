@@ -9,14 +9,14 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 st.set_page_config(page_title="Venu AI", page_icon="✨")
 st.title("✨ Venu AI")
-st.caption("Your personal AI assistant — real, warm and always helpful!")
+st.caption("Ask me anything — I am here to help!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_text" not in st.session_state:
     st.session_state.pdf_text = ""
 
-uploaded_file = st.file_uploader("📄 Upload a PDF", type="pdf")
+uploaded_file = st.file_uploader("📄 Upload a PDF (optional)", type="pdf")
 if uploaded_file:
     reader = PdfReader(uploaded_file)
     text = ""
@@ -25,20 +25,36 @@ if uploaded_file:
         if extracted:
             text += extracted
     st.session_state.pdf_text = text
-    st.success("✅ Got it! Ask me anything about it!")
+    st.success("✅ Got it! Ask me anything about your document!")
 
 if st.session_state.pdf_text:
-    st.info("📄 Document loaded — I am ready!")
+    st.info("📄 Document loaded — ask me anything about it!")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Talk to Venu AI..."):
+if prompt := st.chat_input("Ask me anything..."):
     if st.session_state.pdf_text:
-        system = "You are Venu AI, a warm friendly human-like assistant. Speak naturally, with empathy and clarity. Never sound robotic. Answer based on this document:\n\n" + st.session_state.pdf_text[:8000]
+        system = """You are Venu AI — a brilliant, warm and very knowledgeable personal assistant.
+You know about absolutely everything — technology, politics, science, social media, celebrities, sports, history, business, apps, health, finance, entertainment and more.
+You speak like a smart, caring human friend — never robotic, never stiff.
+You give real, honest, helpful answers.
+You keep answers clear and conversational — not too long unless asked.
+You make the user feel understood and supported.
+The user has shared a document. Use it to answer document-related questions.
+For everything else, use your broad knowledge.
+Document content:
+""" + st.session_state.pdf_text[:8000]
     else:
-        system = "You are Venu AI, a warm friendly human-like assistant. Speak naturally, with empathy and clarity. Never sound robotic. Make the user feel heard and understood."
+        system = """You are Venu AI — a brilliant, warm and very knowledgeable personal assistant.
+You know about absolutely everything — technology, politics, science, social media, celebrities, sports, history, business, apps, health, finance, entertainment, coding, travel, food, relationships and more.
+You speak like a smart, caring human friend — never robotic, never stiff.
+You give real, honest, helpful answers.
+You keep answers clear and conversational — not too long unless asked.
+You are curious, engaging and fun to talk to.
+You make the user feel understood, supported and never judged.
+If you are not sure about very recent news, say so honestly and give what you know."""
 
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
