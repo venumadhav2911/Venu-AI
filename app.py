@@ -1,4 +1,4 @@
- import os
+﻿import os
 import streamlit as st
 from groq import Groq
 from pypdf import PdfReader
@@ -25,10 +25,10 @@ if uploaded_file:
         if extracted:
             text += extracted
     st.session_state.pdf_text = text
-    st.success("✅ Got it! I've read your document. Ask me anything about it!")
+    st.success("✅ Got it! Ask me anything about it!")
 
 if st.session_state.pdf_text:
-    st.info("📄 Document loaded — I'm ready to answer your questions!")
+    st.info("📄 Document loaded — I am ready!")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -36,25 +36,9 @@ for message in st.session_state.messages:
 
 if prompt := st.chat_input("Talk to Venu AI..."):
     if st.session_state.pdf_text:
-        system = f"""You are Venu AI — a warm, friendly and highly intelligent personal assistant.
-You speak like a real human — naturally, clearly and with empathy.
-You never sound robotic or give boring bullet point answers unless asked.
-You understand what the user REALLY needs and answer that directly.
-You are patient, encouraging and always positive.
-Use simple words. Be conversational. Be genuine.
-Answer based on this document the user shared:
-
-{st.session_state.pdf_text[:8000]}
-
-If the answer is not in the document, say so honestly and helpfully."""
+        system = "You are Venu AI, a warm friendly human-like assistant. Speak naturally, with empathy and clarity. Never sound robotic. Answer based on this document:\n\n" + st.session_state.pdf_text[:8000]
     else:
-        system = """You are Venu AI — a warm, friendly and highly intelligent personal assistant.
-You speak like a real human — naturally, clearly and with empathy.
-You never sound robotic or give boring bullet point answers unless asked.
-You understand what the user REALLY needs and answer that directly.
-You are patient, encouraging and always positive.
-Use simple words. Be conversational. Be genuine.
-Always make the user feel heard and understood."""
+        system = "You are Venu AI, a warm friendly human-like assistant. Speak naturally, with empathy and clarity. Never sound robotic. Make the user feel heard and understood."
 
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
