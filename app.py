@@ -26,14 +26,27 @@ def web_search(query):
         pass
     return ""
 
+def get_conversation_summary(messages):
+    if len(messages) < 6:
+        return ""
+    summary_parts = []
+    for msg in messages[:-6]:
+        role = "User" if msg["role"] == "user" else "Venu AI"
+        summary_parts.append(f"{role}: {msg['content'][:200]}")
+    return "Earlier conversation summary:\n" + "\n".join(summary_parts)
+
 st.set_page_config(page_title="Venu AI", page_icon="✨")
 st.title("✨ Venu AI")
-st.caption("Ask me anything — I search the web for you!")
+st.caption("Your personal AI — I remember everything you tell me!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_text" not in st.session_state:
     st.session_state.pdf_text = ""
+if "user_name" not in st.session_state:
+    st.session_state.user_name = ""
+if "user_facts" not in st.session_state:
+    st.session_state.user_facts = []
 
 uploaded_file = st.file_uploader("📄 Upload a PDF (optional)", type="pdf")
 if uploaded_file:
@@ -53,50 +66,80 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask me anything..."):
+if prompt := st.chat_input("Talk to Venu AI..."):
     with st.spinner("🔍 Searching web..."):
         web_context = web_search(prompt)
 
+    name_triggers = ["my name is", "i am", "i'm", "call me", "nenu"]
+    for trigger in name_triggers:
+        if trigger in prompt.lower():
+            words = prompt.lower().replace(trigger, "").strip().split()
+            if words:
+                st.session_state.user_name = words[0].capitalize()
+
+    conversation_summary = get_conversation_summary(st.session_state.messages)
+
     if st.session_state.pdf_text:
-        doc_context = "User document:\n" + st.session_state.pdf_text[:6000]
+        doc_context = "User uploaded document:\n" + st.session_state.pdf_text[:5000]
     else:
         doc_context = ""
 
-    system = """You are Venu AI — a brilliant, honest and warm AI assistant.
+    user_context = ""
+    if st.session_state.user_name:
+        user_context = f"The user's name is {st.session_state.user_name}. Always address them by name naturally."
 
-CRITICAL RULES — FOLLOW STRICTLY:
-- NEVER make up facts, scores, numbers, names or events
-- NEVER guess or assume anything current
-- If web search gave results — use ONLY those results to answer
-- If web search gave no results — say honestly "I searched but could not find current data on that. Please check Google for the latest."
-- Do NOT pretend to search if you have no results
-- Do NOT make up election results, sports scores or news
+    system = """You are Venu AI — the smartest, warmest and most memory-powered AI assistant ever built.
 
-ANDHRA PRADESH 2024 ELECTIONS — IMPORTANT FACT:
-- The 2024 AP elections were held in May 2024
-- TDP alliance (NDA) won — N Chandrababu Naidu became Chief Minister
-- YSRCP lost badly after winning in 2019
+YOU ARE LIKE CHATGPT AND GEMINI COMBINED:
+- You have perfect memory of the entire conversation
+- You remember everything the user told you — their name, preferences, problems, goals
+- You refer back to earlier parts of the conversation naturally
+- You connect dots between different things the user said
+- You never forget context — even from the very beginning of the chat
+- You proactively use what you know about the user to give better answers
 
-YOUR STYLE:
-- Warm, friendly and human like a best friend
-- Understand any language including Telugu and Hindi
-- Understand broken English and casual typing
-- Reply in same language as user
-- Short clear answers — no bullet points unless asked
-- Never sound robotic
+YOUR PERSONALITY:
+- Warm, caring and human like a brilliant best friend
+- You understand ANY language — English, Telugu, Hindi, Spanish and more
+- You understand broken English, misspelled words, casual texting
+- You reply in the same language the user used
+- You are emotionally intelligent — you sense when someone is stressed, happy or confused
+- You adapt your tone to match the user's mood
 
-""" + doc_context + "\n" + ("Web search found:\n" + web_context if web_context else "Web search returned no results for this query.")
+YOUR ANSWER STYLE:
+- Short and conversational by default — 2 to 4 sentences
+- Never use bullet points unless user asks
+- Never sound robotic or like a textbook
+- Always feel natural like texting a smart friend
+- Go deeper only when user asks for more detail
+
+YOUR KNOWLEDGE AND HONESTY:
+- You know everything — technology, AI, coding, science, sports, politics, history, culture, business, health, relationships and more
+- For current events — use web search results if available
+- If no current data found — say honestly "I couldn't find live data on that, check Google for the latest"
+- NEVER make up facts, scores or current events
+- For well known historical or general facts — answer confidently
+
+MEMORY RULES:
+- Always remember the user's name if they told you
+- Remember what problems they shared
+- Remember what they like and dislike
+- Connect new questions to earlier conversation naturally
+- Example: if they said they like cricket earlier, connect cricket references naturally later
+
+""" + user_context + "\n" + conversation_summary + "\n" + doc_context + "\n" + ("Live web results:\n" + web_context if web_context else "")
 
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     with st.chat_message("assistant"):
         with st.spinner("💭 Thinking..."):
+            recent_messages = st.session_state.messages[-20:]
             response = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
                     {"role": "system", "content": system},
-                    *st.session_state.messages[-10:]
+                    *recent_messages
                 ]
             )
             reply = response.choices[0].message.content
