@@ -4,8 +4,6 @@ from groq import Groq
 from pypdf import PdfReader
 from dotenv import load_dotenv
 import requests
-import time
-import random
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -43,65 +41,92 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+* { font-family: 'Inter', sans-serif; }
 
 .stApp {
-    background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 40%, #0a0e1a 70%, #0f0a1a 100%);
-    min-height: 100vh;
+    background: #f9fafb;
 }
 
-#stars-container {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 0;
+section[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1px solid #e5e7eb !important;
+}
+
+section[data-testid="stSidebar"] * {
+    color: #111827 !important;
+}
+
+.sidebar-logo {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #7c3aed !important;
+    padding: 1rem 0 1.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.new-chat-btn {
+    background: #7c3aed;
+    color: white !important;
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    width: 100%;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.chat-item {
+    background: transparent;
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin: 0.2rem 0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #374151 !important;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.2s;
 }
 
-.star {
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-    animation: twinkle linear infinite;
+.chat-item:hover {
+    background: #f3f4f6;
 }
 
-@keyframes twinkle {
-    0% { opacity: 0; transform: scale(0.5); }
-    50% { opacity: 1; transform: scale(1.2); }
-    100% { opacity: 0; transform: scale(0.5); }
-}
-
-@keyframes sparkle {
-    0% { opacity: 0; transform: scale(0) rotate(0deg); }
-    50% { opacity: 1; transform: scale(1) rotate(180deg); }
-    100% { opacity: 0; transform: scale(0) rotate(360deg); }
-}
-
-.sparkle {
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    background: linear-gradient(45deg, #a78bfa, #60a5fa);
-    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-    animation: sparkle linear infinite;
+.section-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0;
+    margin-top: 0.5rem;
 }
 
 .main-header {
     text-align: center;
-    padding: 2rem 0 1rem 0;
-    position: relative;
-    z-index: 10;
+    padding: 3rem 0 1rem 0;
 }
 
 .main-header h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #ffffff 0%, #a78bfa 40%, #60a5fa 70%, #34d399 100%);
+    color: #111827;
+}
+
+.main-header h1 span {
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.5px;
 }
 
 .main-header p {
@@ -110,160 +135,78 @@ st.markdown("""
     margin-top: 0.5rem;
 }
 
-section[data-testid="stSidebar"] {
-    background: rgba(13, 17, 23, 0.95) !important;
-    border-right: 1px solid rgba(139, 92, 246, 0.2) !important;
-}
-
-section[data-testid="stSidebar"] * {
-    color: #e5e7eb !important;
-}
-
-.sidebar-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #a78bfa !important;
-    padding: 1rem 0 0.5rem 0;
-    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-    margin-bottom: 1rem;
-}
-
-.chat-item {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 8px;
-    padding: 0.6rem 0.8rem;
-    margin: 0.3rem 0;
-    cursor: pointer;
-    font-size: 0.85rem;
-    color: #d1d5db !important;
-    transition: all 0.2s;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.chat-item:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
-}
-
 .stChatMessage {
     background: transparent !important;
     border: none !important;
-    padding: 0.5rem 0 !important;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 [data-testid="stChatMessageContent"] {
-    background: rgba(17, 24, 39, 0.8) !important;
-    border: 1px solid rgba(75, 85, 99, 0.3) !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
     border-radius: 12px !important;
-    padding: 1rem 1.2rem !important;
-    color: #f3f4f6 !important;
-    backdrop-filter: blur(10px);
-}
-
-[data-testid="stChatMessage"][data-testid*="user"] [data-testid="stChatMessageContent"] {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(96, 165, 250, 0.2)) !important;
-    border-color: rgba(139, 92, 246, 0.3) !important;
+    color: #111827 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
 }
 
 .stChatInputContainer {
-    background: rgba(13, 17, 23, 0.9) !important;
-    border-top: 1px solid rgba(139, 92, 246, 0.2) !important;
-    padding: 1rem !important;
-    backdrop-filter: blur(20px);
+    background: #ffffff !important;
+    border-top: 1px solid #e5e7eb !important;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .stChatInputContainer textarea {
-    background: rgba(31, 41, 55, 0.8) !important;
-    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+    background: #f9fafb !important;
+    border: 1px solid #d1d5db !important;
     border-radius: 12px !important;
-    color: #f3f4f6 !important;
+    color: #111827 !important;
     font-size: 0.95rem !important;
 }
 
 .stChatInputContainer textarea:focus {
-    border-color: rgba(139, 92, 246, 0.6) !important;
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1) !important;
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1) !important;
 }
 
 .stFileUploader {
-    background: rgba(17, 24, 39, 0.6) !important;
-    border: 1px dashed rgba(139, 92, 246, 0.3) !important;
+    background: #f9fafb !important;
+    border: 1px dashed #d1d5db !important;
     border-radius: 12px !important;
-    padding: 1rem !important;
 }
 
 .stSuccess {
-    background: rgba(16, 185, 129, 0.1) !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    background: #f0fdf4 !important;
+    border: 1px solid #86efac !important;
     border-radius: 8px !important;
-    color: #34d399 !important;
+    color: #166534 !important;
 }
 
 .stInfo {
-    background: rgba(96, 165, 250, 0.1) !important;
-    border: 1px solid rgba(96, 165, 250, 0.3) !important;
+    background: #eff6ff !important;
+    border: 1px solid #93c5fd !important;
     border-radius: 8px !important;
-    color: #60a5fa !important;
+    color: #1e40af !important;
 }
 
-.new-chat-btn {
-    background: linear-gradient(135deg, #7c3aed, #2563eb);
-    color: white !important;
-    border: none;
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    width: 100%;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    margin-bottom: 1rem;
-    text-align: center;
-}
+.stMarkdown p { color: #111827 !important; line-height: 1.7; }
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #111827 !important; }
+.stMarkdown code { background: #f3f4f6 !important; color: #7c3aed !important; border-radius: 4px; padding: 2px 6px; }
+.stMarkdown pre { background: #1f2937 !important; border-radius: 8px !important; }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.5); }
+::-webkit-scrollbar-track { background: #f9fafb; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
-.stMarkdown p { color: #e5e7eb !important; line-height: 1.7; }
-.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #f9fafb !important; }
-.stMarkdown code { background: rgba(139, 92, 246, 0.15) !important; color: #a78bfa !important; border-radius: 4px; padding: 2px 6px; }
-.stMarkdown pre { background: rgba(17, 24, 39, 0.9) !important; border: 1px solid rgba(139, 92, 246, 0.2) !important; border-radius: 8px !important; }
-</style>
-
-<div id="stars-container"></div>
-<script>
-const container = document.getElementById('stars-container');
-if (container) {
-    for (let i = 0; i < 150; i++) {
-        const star = document.createElement('div');
-        const size = Math.random() * 3 + 1;
-        star.className = 'star';
-        star.style.cssText = 
-            width: px; height: px;
-            left: %;
-            top: %;
-            animation-duration: s;
-            animation-delay: s;
-        ;
-        container.appendChild(star);
-    }
-    for (let i = 0; i < 20; i++) {
-        const sparkle = document.createElement('div');
-        sparkle.className = 'sparkle';
-        sparkle.style.cssText = 
-            left: %;
-            top: %;
-            animation-duration: s;
-            animation-delay: s;
-        ;
-        container.appendChild(sparkle);
-    }
+.footer-text {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    padding: 1rem;
 }
-</script>
+</style>
 """, unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
@@ -276,18 +219,21 @@ if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = []
 
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">✨ Venu AI</div>', unsafe_allow_html=True)
-    if st.button("+ New Chat", use_container_width=True):
+    st.markdown('<div class="sidebar-logo">✨ Venu AI</div>', unsafe_allow_html=True)
+
+    if st.button("✏️ New Chat", use_container_width=True):
         if st.session_state.messages:
-            first_msg = st.session_state.messages[0]["content"][:40] + "..."
+            first_msg = st.session_state.messages[0]["content"][:45] + "..."
             st.session_state.chat_sessions.append(first_msg)
         st.session_state.messages = []
         st.session_state.pdf_text = ""
         st.rerun()
+
     if st.session_state.chat_sessions:
-        st.markdown("**Recent Chats**")
-        for i, session in enumerate(reversed(st.session_state.chat_sessions[-10:])):
+        st.markdown('<div class="section-label">Recent</div>', unsafe_allow_html=True)
+        for session in reversed(st.session_state.chat_sessions[-10:]):
             st.markdown(f'<div class="chat-item">💬 {session}</div>', unsafe_allow_html=True)
+
     st.markdown("---")
     uploaded_file = st.file_uploader("📄 Upload PDF", type="pdf")
     if uploaded_file:
@@ -301,21 +247,22 @@ with st.sidebar:
         st.success("✅ PDF loaded!")
     if st.session_state.pdf_text:
         st.info("📄 Document ready!")
-    st.markdown("---")
-    st.markdown('<p style="color: #4b5563; font-size: 0.8rem; text-align: center;">Venu AI v2.0<br>Powered by Llama 3.3</p>', unsafe_allow_html=True)
 
-st.markdown("""
-<div class="main-header">
-    <h1>✨ Venu AI</h1>
-    <p>Your personal AI assistant — ask me anything!</p>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown('<div class="footer-text">Venu AI v2.0<br>Powered by Llama 3.3</div>', unsafe_allow_html=True)
+
+if not st.session_state.messages:
+    st.markdown("""
+    <div class="main-header">
+        <h1>Welcome to <span>Venu AI</span></h1>
+        <p>Your personal AI assistant — ask me anything, in any language!</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask me anything, in any language..."):
+if prompt := st.chat_input("Message Venu AI..."):
     with st.spinner("🔍 Searching..."):
         web_context = web_search(prompt)
 
@@ -331,28 +278,31 @@ if prompt := st.chat_input("Ask me anything, in any language..."):
 
     system = """You are Venu AI — a brilliant, warm and honest AI assistant.
 
-CRITICAL FACTS:
-- Current year is 2025
-- Donald Trump is the US President since January 2025
-- Use web search results for ALL current events
-- NEVER make up facts or current data
-- If no web results — say honestly you could not find live data
+CRITICAL RULES:
+- NEVER ramble or repeat yourself
+- Give ONE clear direct answer — no going back and forth
+- If you are not sure — say so in ONE sentence and stop
+- Current year is 2025, Donald Trump is US President
+- NEVER make up current facts, scores or events
+- Use web search results for current data only
+
+ANSWER STYLE:
+- 2 to 3 sentences MAX by default
+- Only go longer if user asks for detail
+- No bullet points unless asked
+- Warm, human, conversational tone
+- Never repeat the same point twice
+- Be confident and direct
 
 MEMORY:
 - Remember everything from this conversation
-- Remember user name, interests and preferences
+- Use user name naturally if known
 - Connect earlier conversation naturally
 
 LANGUAGE:
-- Understand ANY language including Telugu and Hindi
-- Understand broken English and misspelled words
+- Any language including Telugu and Hindi
+- Understand broken English and casual typing
 - Reply in same language as user
-
-STYLE:
-- 2 to 3 sentences by default
-- No bullet points unless asked
-- Warm, human, conversational
-- Never robotic or textbook style
 
 """ + user_context + "\n" + summary + "\n" + doc_context + "\n" + ("Web results:\n" + web_context if web_context else "")
 
