@@ -4,12 +4,45 @@ from groq import Groq
 from pypdf import PdfReader
 from dotenv import load_dotenv
 import requests
+import random
+import time
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+RESEND_KEY = st.secrets.get("RESEND_KEY", "")
+FROM_EMAIL = st.secrets.get("FROM_EMAIL", "onboarding@resend.dev")
+
+def send_otp_email(to_email, otp):
+    try:
+        html = f"""
+        <div style="font-family:Inter,sans-serif;max-width:500px;margin:0 auto;padding:2rem;background:#f9fafb;border-radius:16px;">
+            <div style="text-align:center;margin-bottom:2rem;">
+                <h1 style="background:linear-gradient(135deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:2rem;">✨ Venu AI</h1>
+            </div>
+            <div style="background:white;border-radius:12px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                <h2 style="color:#111827;margin-bottom:0.5rem;">Your Login Code</h2>
+                <p style="color:#6b7280;margin-bottom:1.5rem;">Use this code to sign in to Venu AI. This code expires in 10 minutes.</p>
+                <div style="background:linear-gradient(135deg,#7c3aed,#2563eb);border-radius:12px;padding:1.5rem;text-align:center;margin:1.5rem 0;">
+                    <span style="color:white;font-size:2.5rem;font-weight:800;letter-spacing:0.5rem;">{otp}</span>
+                </div>
+                <p style="color:#6b7280;font-size:0.9rem;">If you did not request this code, please ignore this email. Your account is safe.</p>
+                <hr style="border:none;border-top:1px solid #e5e7eb;margin:1.5rem 0;">
+                <p style="color:#9ca3af;font-size:0.8rem;text-align:center;">This is an automated message from Venu AI. Please do not reply to this email.</p>
+                <p style="color:#9ca3af;font-size:0.8rem;text-align:center;">© 2025 Venu AI. All rights reserved.</p>
+            </div>
+        </div>
+        """
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_KEY}", "Content-Type": "application/json"},
+            json={"from": f"Venu AI <{FROM_EMAIL}>", "to": [to_email], "subject": "Your Venu AI Login Code", "html": html}
+        )
+        return response.status_code == 200
+    except:
+        return False
 
 def save_message(email, role, content):
     try:
@@ -75,10 +108,18 @@ section[data-testid="stSidebar"] * { color: #111827 !important; }
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
 if "is_guest" not in st.session_state:
     st.session_state.is_guest = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+if "otp_sent" not in st.session_state:
+    st.session_state.otp_sent = False
+if "otp_code" not in st.session_state:
+    st.session_state.otp_code = ""
+if "otp_email" not in st.session_state:
+    st.session_state.otp_email = ""
+if "otp_time" not in st.session_state:
+    st.session_state.otp_time = 0
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_text" not in st.session_state:
@@ -88,51 +129,84 @@ if "chat_sessions" not in st.session_state:
 
 if not st.session_state.logged_in and not st.session_state.is_guest:
     st.markdown("""
-    <div style="text-align:center; padding: 4rem 0 2rem 0;">
-        <h1 style="font-size:2.5rem; font-weight:800; background: linear-gradient(135deg, #7c3aed, #2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">✨ Venu AI</h1>
-        <p style="color:#6b7280; font-size:1rem; margin-top:0.5rem;">Your personal AI assistant — smarter than ever!</p>
+    <div style="text-align:center;padding:3rem 0 2rem 0;">
+        <h1 style="font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#7c3aed,#2563eb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">✨ Venu AI</h1>
+        <p style="color:#6b7280;font-size:1rem;margin-top:0.5rem;">Your personal AI assistant</p>
     </div>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.markdown("""
-        <div style="background:white; border-radius:16px; padding:2rem; box-shadow:0 4px 20px rgba(0,0,0,0.08); border:1px solid #e5e7eb;">
-            <h3 style="text-align:center; color:#111827; margin-bottom:0.5rem;">Sign in to Venu AI</h3>
-            <p style="text-align:center; color:#6b7280; font-size:0.9rem; margin-bottom:1.5rem;">Save your chat history and access from anywhere</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div style="background:white;border-radius:16px;padding:2rem;box-shadow:0 4px 20px rgba(0,0,0,0.08);border:1px solid #e5e7eb;">""", unsafe_allow_html=True)
 
-        email = st.text_input("Email address", placeholder="you@gmail.com", label_visibility="collapsed")
+        if not st.session_state.otp_sent:
+            st.markdown("<h3 style='text-align:center;color:#111827;'>Sign in to Venu AI</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center;color:#6b7280;font-size:0.9rem;margin-bottom:1rem;'>Enter your email to receive a login code</p>", unsafe_allow_html=True)
+            email = st.text_input("Email address", placeholder="you@gmail.com", label_visibility="collapsed")
 
-        if st.button("🚀 Continue with Email", use_container_width=True):
-            if "@" in email and "." in email:
-                st.session_state.user_email = email
-                st.session_state.logged_in = True
-                st.session_state.is_guest = False
-                st.session_state.messages = load_messages(email)
+            if st.button("📧 Send Login Code", use_container_width=True):
+                if "@" in email and "." in email:
+                    otp = str(random.randint(100000, 999999))
+                    if send_otp_email(email, otp):
+                        st.session_state.otp_code = otp
+                        st.session_state.otp_email = email
+                        st.session_state.otp_sent = True
+                        st.session_state.otp_time = time.time()
+                        st.rerun()
+                    else:
+                        st.error("Could not send email. Please try again.")
+                else:
+                    st.error("Please enter a valid email!")
+
+            st.markdown("<div style='text-align:center;color:#9ca3af;padding:0.5rem;'>— or —</div>", unsafe_allow_html=True)
+
+            if st.button("👤 Continue as Guest", use_container_width=True):
+                st.session_state.is_guest = True
+                st.session_state.user_email = "guest"
                 st.rerun()
+
+        else:
+            time_left = int(600 - (time.time() - st.session_state.otp_time))
+            st.markdown(f"<h3 style='text-align:center;color:#111827;'>Check your email! 📧</h3>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align:center;color:#6b7280;font-size:0.9rem;'>We sent a 6-digit code to<br><strong>{st.session_state.otp_email}</strong></p>", unsafe_allow_html=True)
+
+            if time_left > 0:
+                st.markdown(f"<p style='text-align:center;color:#7c3aed;font-size:0.85rem;'>Code expires in {time_left} seconds</p>", unsafe_allow_html=True)
             else:
-                st.error("Please enter a valid email!")
+                st.error("Code expired! Please request a new one.")
+                if st.button("🔄 Send New Code", use_container_width=True):
+                    st.session_state.otp_sent = False
+                    st.rerun()
 
-        st.markdown("<div style='text-align:center; color:#9ca3af; padding:0.5rem;'>— or —</div>", unsafe_allow_html=True)
+            otp_input = st.text_input("Enter 6-digit code", placeholder="123456", max_chars=6, label_visibility="collapsed")
 
-        if st.button("👤 Continue as Guest", use_container_width=True):
-            st.session_state.is_guest = True
-            st.session_state.user_email = "guest"
-            st.session_state.messages = []
-            st.rerun()
+            if st.button("✅ Verify Code", use_container_width=True):
+                if time_left <= 0:
+                    st.error("Code expired! Please request a new one.")
+                elif otp_input == st.session_state.otp_code:
+                    st.session_state.logged_in = True
+                    st.session_state.user_email = st.session_state.otp_email
+                    st.session_state.messages = load_messages(st.session_state.otp_email)
+                    st.session_state.otp_sent = False
+                    st.success("✅ Logged in successfully!")
+                    st.rerun()
+                else:
+                    st.error("Wrong code! Please try again.")
 
-        st.markdown("<p style='text-align:center; color:#9ca3af; font-size:0.8rem; margin-top:1rem;'>No password needed! Just enter your email.</p>", unsafe_allow_html=True)
+            if st.button("← Back", use_container_width=True):
+                st.session_state.otp_sent = False
+                st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center;color:#9ca3af;font-size:0.8rem;margin-top:1rem;'>🔒 Secure login — no password needed</p>", unsafe_allow_html=True)
 
 else:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">✨ Venu AI</div>', unsafe_allow_html=True)
-
         if st.session_state.is_guest:
-            st.markdown('<p style="color:#6b7280; font-size:0.85rem;">👤 Guest User</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#6b7280;font-size:0.85rem;">👤 Guest User</p>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<p style="color:#6b7280; font-size:0.85rem;">👤 {st.session_state.user_email}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p style="color:#6b7280;font-size:0.85rem;">👤 {st.session_state.user_email}</p>', unsafe_allow_html=True)
 
         if st.button("✏️ New Chat", use_container_width=True):
             if st.session_state.messages:
@@ -143,10 +217,9 @@ else:
             st.rerun()
 
         if st.button("🚪 Sign Out", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.is_guest = False
-            st.session_state.user_email = ""
-            st.session_state.messages = []
+            for key in ["logged_in", "is_guest", "user_email", "otp_sent", "otp_code", "messages"]:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.rerun()
 
         if st.session_state.chat_sessions:
@@ -171,10 +244,10 @@ else:
         st.markdown('<div class="footer-text">Venu AI v2.0<br>Powered by Llama 3.3</div>', unsafe_allow_html=True)
 
     if not st.session_state.messages:
-        name = "Guest" if st.session_state.is_guest else st.session_state.user_email.split("@")[0].capitalize()
+        name = "Guest" if st.session_state.get("is_guest") else st.session_state.user_email.split("@")[0].capitalize()
         st.markdown(f"""
-        <div style="text-align:center; padding:3rem 0 1rem 0;">
-            <h1 style="font-size:2rem; font-weight:700; color:#111827;">Hello, {name}! 👋</h1>
+        <div style="text-align:center;padding:3rem 0 1rem 0;">
+            <h1 style="font-size:2rem;font-weight:700;color:#111827;">Hello, {name}! 👋</h1>
             <p style="color:#6b7280;">Ask me anything — in any language!</p>
         </div>
         """, unsafe_allow_html=True)
@@ -208,8 +281,7 @@ STYLE:
 
         st.chat_message("user").markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
-
-        if not st.session_state.is_guest:
+        if not st.session_state.get("is_guest"):
             save_message(st.session_state.user_email, "user", prompt)
 
         with st.chat_message("assistant"):
@@ -224,6 +296,5 @@ STYLE:
                 reply = response.choices[0].message.content
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
-
-                if not st.session_state.is_guest:
+                if not st.session_state.get("is_guest"):
                     save_message(st.session_state.user_email, "assistant", reply)
