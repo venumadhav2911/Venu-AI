@@ -4,7 +4,6 @@ from groq import Groq
 from pypdf import PdfReader
 from dotenv import load_dotenv
 import requests
-import json
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -14,22 +13,14 @@ SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
 
 def save_message(email, role, content):
     try:
-        headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "application/json"
-        }
-        data = {"user_email": email, "role": role, "content": content}
-        requests.post(f"{SUPABASE_URL}/rest/v1/Chat_history", headers=headers, json=data)
+        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json"}
+        requests.post(f"{SUPABASE_URL}/rest/v1/Chat_history", headers=headers, json={"user_email": email, "role": role, "content": content})
     except:
         pass
 
 def load_messages(email):
     try:
-        headers = {
-            "apikey": SUPABASE_KEY,
-            "Authorization": f"Bearer {SUPABASE_KEY}"
-        }
+        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
         r = requests.get(f"{SUPABASE_URL}/rest/v1/Chat_history?user_email=eq.{email}&order=created_at.asc&limit=50", headers=headers)
         rows = r.json()
         return [{"role": row["role"], "content": row["content"]} for row in rows]
@@ -73,21 +64,12 @@ st.markdown("""
 section[data-testid="stSidebar"] { background: #ffffff !important; border-right: 1px solid #e5e7eb !important; }
 section[data-testid="stSidebar"] * { color: #111827 !important; }
 .sidebar-logo { font-size: 1.3rem; font-weight: 700; color: #7c3aed !important; padding: 1rem 0 1.5rem 0; }
-.chat-item { background: transparent; border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.2rem 0; font-size: 0.85rem; color: #374151 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chat-item:hover { background: #f3f4f6; }
+.chat-item { border-radius: 8px; padding: 0.6rem 0.8rem; margin: 0.2rem 0; font-size: 0.85rem; color: #374151 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .section-label { font-size: 0.75rem; font-weight: 600; color: #9ca3af !important; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.5rem 0; }
-.main-header { text-align: center; padding: 3rem 0 1rem 0; }
-.main-header h1 { font-size: 2rem; font-weight: 700; color: #111827; }
-.main-header h1 span { background: linear-gradient(135deg, #7c3aed, #2563eb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.main-header p { color: #6b7280; font-size: 0.95rem; margin-top: 0.5rem; }
 [data-testid="stChatMessageContent"] { background: #ffffff !important; border: 1px solid #e5e7eb !important; border-radius: 12px !important; color: #111827 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; }
 .stChatInputContainer textarea { background: #f9fafb !important; border: 1px solid #d1d5db !important; border-radius: 12px !important; color: #111827 !important; }
-.stChatInputContainer textarea:focus { border-color: #7c3aed !important; }
 .stMarkdown p { color: #111827 !important; line-height: 1.7; }
 .footer-text { text-align: center; color: #9ca3af; font-size: 0.75rem; padding: 1rem; }
-.login-box { background: white; border-radius: 16px; padding: 2rem; max-width: 400px; margin: 3rem auto; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e5e7eb; text-align: center; }
-.login-title { font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem; }
-.login-sub { color: #6b7280; font-size: 0.9rem; margin-bottom: 1.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,6 +77,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
+if "is_guest" not in st.session_state:
+    st.session_state.is_guest = False
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "pdf_text" not in st.session_state:
@@ -102,31 +86,53 @@ if "pdf_text" not in st.session_state:
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = []
 
-if not st.session_state.logged_in:
+if not st.session_state.logged_in and not st.session_state.is_guest:
     st.markdown("""
-    <div class="main-header">
-        <h1>Welcome to <span>Venu AI</span></h1>
-        <p>Your personal AI assistant</p>
+    <div style="text-align:center; padding: 4rem 0 2rem 0;">
+        <h1 style="font-size:2.5rem; font-weight:800; background: linear-gradient(135deg, #7c3aed, #2563eb); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">✨ Venu AI</h1>
+        <p style="color:#6b7280; font-size:1rem; margin-top:0.5rem;">Your personal AI assistant — smarter than ever!</p>
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1,2,1])
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.markdown("### Sign in to continue")
-        email = st.text_input("Enter your email address", placeholder="you@example.com")
-        if st.button("Continue with Email", use_container_width=True):
+        st.markdown("""
+        <div style="background:white; border-radius:16px; padding:2rem; box-shadow:0 4px 20px rgba(0,0,0,0.08); border:1px solid #e5e7eb;">
+            <h3 style="text-align:center; color:#111827; margin-bottom:0.5rem;">Sign in to Venu AI</h3>
+            <p style="text-align:center; color:#6b7280; font-size:0.9rem; margin-bottom:1.5rem;">Save your chat history and access from anywhere</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        email = st.text_input("Email address", placeholder="you@gmail.com", label_visibility="collapsed")
+
+        if st.button("🚀 Continue with Email", use_container_width=True):
             if "@" in email and "." in email:
                 st.session_state.user_email = email
                 st.session_state.logged_in = True
+                st.session_state.is_guest = False
                 st.session_state.messages = load_messages(email)
                 st.rerun()
             else:
-                st.error("Please enter a valid email address")
-        st.markdown('<p style="text-align:center; color:#9ca3af; font-size:0.8rem; margin-top:1rem;">No password needed — just your email!</p>', unsafe_allow_html=True)
+                st.error("Please enter a valid email!")
+
+        st.markdown("<div style='text-align:center; color:#9ca3af; padding:0.5rem;'>— or —</div>", unsafe_allow_html=True)
+
+        if st.button("👤 Continue as Guest", use_container_width=True):
+            st.session_state.is_guest = True
+            st.session_state.user_email = "guest"
+            st.session_state.messages = []
+            st.rerun()
+
+        st.markdown("<p style='text-align:center; color:#9ca3af; font-size:0.8rem; margin-top:1rem;'>No password needed! Just enter your email.</p>", unsafe_allow_html=True)
+
 else:
     with st.sidebar:
         st.markdown('<div class="sidebar-logo">✨ Venu AI</div>', unsafe_allow_html=True)
-        st.markdown(f'<p style="color:#6b7280; font-size:0.85rem;">👤 {st.session_state.user_email}</p>', unsafe_allow_html=True)
+
+        if st.session_state.is_guest:
+            st.markdown('<p style="color:#6b7280; font-size:0.85rem;">👤 Guest User</p>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<p style="color:#6b7280; font-size:0.85rem;">👤 {st.session_state.user_email}</p>', unsafe_allow_html=True)
 
         if st.button("✏️ New Chat", use_container_width=True):
             if st.session_state.messages:
@@ -138,6 +144,7 @@ else:
 
         if st.button("🚪 Sign Out", use_container_width=True):
             st.session_state.logged_in = False
+            st.session_state.is_guest = False
             st.session_state.user_email = ""
             st.session_state.messages = []
             st.rerun()
@@ -164,10 +171,11 @@ else:
         st.markdown('<div class="footer-text">Venu AI v2.0<br>Powered by Llama 3.3</div>', unsafe_allow_html=True)
 
     if not st.session_state.messages:
-        st.markdown("""
-        <div class="main-header">
-            <h1>Hello! I am <span>Venu AI</span></h1>
-            <p>Ask me anything — in any language!</p>
+        name = "Guest" if st.session_state.is_guest else st.session_state.user_email.split("@")[0].capitalize()
+        st.markdown(f"""
+        <div style="text-align:center; padding:3rem 0 1rem 0;">
+            <h1 style="font-size:2rem; font-weight:700; color:#111827;">Hello, {name}! 👋</h1>
+            <p style="color:#6b7280;">Ask me anything — in any language!</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -190,19 +198,19 @@ CRITICAL RULES:
 - NEVER make up current facts, scores or events
 - Use web search results for current data only
 - If no web results say honestly you could not find live data
-
 STYLE:
 - 2 to 3 sentences MAX by default
 - No bullet points unless asked
 - Warm human conversational tone
 - Understand any language including Telugu and Hindi
 - Reply in same language as user
-
 """ + summary + "\n" + doc_context + "\n" + ("Web results:\n" + web_context if web_context else "")
 
         st.chat_message("user").markdown(prompt)
         st.session_state.messages.append({"role": "user", "content": prompt})
-        save_message(st.session_state.user_email, "user", prompt)
+
+        if not st.session_state.is_guest:
+            save_message(st.session_state.user_email, "user", prompt)
 
         with st.chat_message("assistant"):
             with st.spinner("💭 Thinking..."):
@@ -216,4 +224,6 @@ STYLE:
                 reply = response.choices[0].message.content
                 st.markdown(reply)
                 st.session_state.messages.append({"role": "assistant", "content": reply})
-                save_message(st.session_state.user_email, "assistant", reply)
+
+                if not st.session_state.is_guest:
+                    save_message(st.session_state.user_email, "assistant", reply)
